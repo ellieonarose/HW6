@@ -336,14 +336,14 @@
 //     }
 // }
 
-
-import java.util.HashMap;
+import java.util.Random;
 
 public class Blackjack {
     private static final int MAX_CARD_VALUE = 13;
     private static final int FACE_CARD_VALUE = 10;
     private static final int BLACKJACK = 21;
     private static final int DEALER_HIT_THRESHOLD = 17;
+    private static final Random RANDOM = new Random();
 
     public class State {
         int playerSum;
@@ -351,53 +351,9 @@ public class Blackjack {
         boolean usableAce;
 
         public State(int playerSum, int dealerCard, boolean usableAce) {
-            this.playerSum = playerSum;
-            this.dealerCard = dealerCard;
+            this.playerSum = Math.min(31, Math.max(0, playerSum));
+            this.dealerCard = Math.min(10, Math.max(1, dealerCard));
             this.usableAce = usableAce;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof State) {
-                State s = (State) obj;
-                return s.playerSum == playerSum && s.dealerCard == dealerCard && s.usableAce == usableAce;
-            }
-            return false;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 17;
-            result = 31 * result + playerSum;
-            result = 31 * result + dealerCard;
-            result = 31 * result + (usableAce ? 1 : 0);
-            return result;
-        }
-    }
-
-    public class QValue {
-        State state;
-        int action;
-        double value;
-
-        public QValue(State state, int action, double value) {
-            this.state = state;
-            this.action = action;
-            this.value = value;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof QValue) {
-                QValue q = (QValue) obj;
-                return q.state.equals(state) && q.action == action;
-            }
-            return false;
-        }
-
-        @Override
-        public int hashCode() {
-            return state.hashCode() + action;
         }
     }
 
@@ -456,6 +412,7 @@ public class Blackjack {
                 playerSum -= 10;
                 usableAce = false;
             }
+            playerSum = Math.min(31, Math.max(0, playerSum));
         }
 
         public void adjustForDealerAces() {
@@ -463,6 +420,7 @@ public class Blackjack {
                 dealerSum -= 10;
                 dealerUsableAce = false;
             }
+            dealerSum = Math.min(31, Math.max(0, dealerSum));
         }
 
         public boolean isTerminal() {
@@ -478,59 +436,57 @@ public class Blackjack {
         }
 
         private int drawCard() {
-            int card = (int) (Math.random() * MAX_CARD_VALUE) + 1;
+            int card = RANDOM.nextInt(MAX_CARD_VALUE) + 1;
             return card > FACE_CARD_VALUE ? FACE_CARD_VALUE : (card == 1 ? 11 : card);
         }
     }
 
     public class QLearningAgent {
-        HashMap<QValue, Double> qValues;
+        double[][][][] qTable; // [playerSum][dealerCard][usableAce][action]
         double alpha, gamma, epsilon;
 
         public QLearningAgent(double alpha, double gamma, double epsilon) {
-            qValues = new HashMap<>();
             this.alpha = alpha;
             this.gamma = gamma;
             this.epsilon = epsilon;
+            qTable = new double[32][11][2][2];  // playerSum, dealerCard, usableAce, actions (hit/stand)
         }
 
         public int getAction(State state) {
-            // Force the player to stand at 20 or 21
+            int playerSum = Math.min(31, Math.max(0, state.playerSum));
+            int dealerCard = Math.min(10, Math.max(1, state.dealerCard));
+            int aceIndex = state.usableAce ? 1 : 0;
+
             if (state.playerSum >= 20) {
-                return 1;  // Stand
+                return 1;  // Force stand at 20 or 21
             }
-        
-            if (Math.random() < epsilon) {
-                return (int) (Math.random() * 2);
+
+            if (RANDOM.nextDouble() < epsilon) {
+                return RANDOM.nextInt(2);
             }
-        
-            int bestAction = 0;
-            double maxQValue = Double.NEGATIVE_INFINITY;
-        
-            for (int action = 0; action < 2; action++) {
-                QValue q = new QValue(state, action, 0.0);
-                double value = qValues.getOrDefault(q, 0.0);
-                if (value > maxQValue) {
-                    maxQValue = value;
-                    bestAction = action;
-                }
-            }
-        
-            return bestAction;
+
+            double hitValue = qTable[playerSum][dealerCard][aceIndex][0];
+            double standValue = qTable[playerSum][dealerCard][aceIndex][1];
+            return hitValue > standValue ? 0 : 1;
         }
 
         public void updateQValue(State state, int action, double reward, State nextState) {
-            QValue currentQ = new QValue(state, action, 0.0);
-            double maxQNext = 0.0;
+            int playerSum = Math.min(31, Math.max(0, state.playerSum));
+            int dealerCard = Math.min(10, Math.max(1, state.dealerCard));
+            int aceIndex = state.usableAce ? 1 : 0;
 
-            for (int i = 0; i < 2; i++) {
-                QValue nextQ = new QValue(nextState, i, 0.0);
-                maxQNext = Math.max(maxQNext, qValues.getOrDefault(nextQ, 0.0));
-            }
+            int nextPlayerSum = Math.min(31, Math.max(0, nextState.playerSum));
+            int nextDealerCard = Math.min(10, Math.max(1, nextState.dealerCard));
+            int nextAceIndex = nextState.usableAce ? 1 : 0;
 
-            double oldQ = qValues.getOrDefault(currentQ, 0.0);
+            double maxQNext = Math.max(
+                qTable[nextPlayerSum][nextDealerCard][nextAceIndex][0],
+                qTable[nextPlayerSum][nextDealerCard][nextAceIndex][1]
+            );
+
+            double oldQ = qTable[playerSum][dealerCard][aceIndex][action];
             double newQ = oldQ + alpha * (reward + gamma * maxQNext - oldQ);
-            qValues.put(currentQ, newQ);
+            qTable[playerSum][dealerCard][aceIndex][action] = newQ;
         }
 
         public void train(int episodes) {
@@ -571,13 +527,9 @@ public class Blackjack {
         QLearningAgent agent = blackjack.new QLearningAgent(0.1, 1.0, 0.1);
 
         System.out.println("Training...");
-        agent.train(500000);
+        agent.train(1000000);
         System.out.println("Training completed!");
 
-        // Print the optimal policy
-        agent.printPolicy();
-
-        // Simulate games
         int wins = 0, losses = 0, ties = 0;
         for (int i = 0; i < 1000; i++) {
             BlackjackEnv env = blackjack.new BlackjackEnv();
@@ -595,13 +547,11 @@ public class Blackjack {
             else ties++;
         }
 
-        // Display results
-        System.out.println("\nResults:");
-        System.out.printf("Wins: %d (%.2f%%)\n", wins, (wins / 10.0));
-        System.out.printf("Losses: %d (%.2f%%)\n", losses, (losses / 10.0));
-        System.out.printf("Ties: %d (%.2f%%)\n", ties, (ties / 10.0));
+        System.out.printf("\nResults:\nWins: %d (%.2f%%)\nLosses: %d (%.2f%%)\nTies: %d (%.2f%%)\n", 
+            wins, (wins / 10.0), losses, (losses / 10.0), ties, (ties / 10.0));
     }
 }
+
 
 //import java.util.HashMap;
 //
