@@ -490,10 +490,13 @@ public class Blackjack {
         }
 
         public void train(int episodes) {
+            double minEpsilon = 0.01;  // Minimum exploration rate
+            double decayRate = Math.pow(minEpsilon / epsilon, 1.0 / episodes);
+        
             for (int i = 0; i < episodes; i++) {
                 BlackjackEnv env = new BlackjackEnv();
                 State state = new State(env.playerSum, env.dealerCard, env.usableAce);
-
+        
                 while (!env.isTerminal()) {
                     int action = getAction(state);
                     env.step(action);
@@ -502,8 +505,9 @@ public class Blackjack {
                     updateQValue(state, action, reward, nextState);
                     state = nextState;
                 }
-
-                epsilon *= 0.999;  // Slow epsilon decay
+        
+                // Gradually decay epsilon
+                epsilon *= decayRate;
             }
         }
 
@@ -527,7 +531,7 @@ public class Blackjack {
         QLearningAgent agent = blackjack.new QLearningAgent(0.1, 1.0, 0.1);
 
         System.out.println("Training...");
-        agent.train(1000000);
+        agent.train(1_000_000);
         System.out.println("Training completed!");
 
         int wins = 0, losses = 0, ties = 0;
@@ -546,6 +550,8 @@ public class Blackjack {
             else if (reward == -1) losses++;
             else ties++;
         }
+        //print the policy
+        agent.printPolicy();
 
         System.out.printf("\nResults:\nWins: %d (%.2f%%)\nLosses: %d (%.2f%%)\nTies: %d (%.2f%%)\n", 
             wins, (wins / 10.0), losses, (losses / 10.0), ties, (ties / 10.0));
