@@ -17,7 +17,7 @@ public class Blackjack {
             if (rank >= 10) {
                 return 10; // Face cards (Jack, Queen, King)
             } else if (rank == 1) {
-                return 1; // Ace is initially counted as 11
+                return 1; 
             } else {
                 return rank; // Number cards
             }
@@ -101,7 +101,6 @@ public class Blackjack {
 
         // The first card of the dealer is shown to the player
         shownCardValue = dealerHand.get(0).getValue();
-        // shownCardValue = (shownCardValue == 1) ? 11 : shownCardValue; 
     }
 
     // Calculate the score of a hand
