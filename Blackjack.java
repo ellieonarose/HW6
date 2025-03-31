@@ -11,13 +11,6 @@ public class Blackjack {
             this.rank = rank;
             this.suit = suit;
         }
-    
-        @Override
-        public String toString() {
-            String[] suits = {"Clubs", "Diamonds", "Hearts", "Spades"};
-            String[] ranks = {"Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King"};
-            return ranks[rank - 1] + " of " + suits[suit];
-        }
 
         // Get the value of the card
         public int getValue() {
