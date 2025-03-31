@@ -1,374 +1,369 @@
-import java.util.HashMap;
+import java.util.Random;
+import java.util.ArrayList;
 
-public class Blackjack{
-    // This file uses Q learning to create an optimal Blackjack player
-    // create variable for 4d array with state of the game
-
-    //First, we need to create a class that represents the state of the game
-    public class State{
-        // The state of the game is represented by the player's current sum, the dealer's face up card, and whether or not the player has a usable ace
-        int playerSum;
-        int dealerCard;
-        boolean usableAce;
-
-        public State(int playerSum, int dealerCard, boolean usableAce){
-            this.playerSum = playerSum;
-            this.dealerCard = dealerCard;
-            this.usableAce = usableAce;
-        }
-
-        public boolean equals(Object obj){
-            if(obj instanceof State){
-                State s = (State) obj;
-                return s.playerSum == playerSum && s.dealerCard == dealerCard && s.usableAce == usableAce;
-            }
-            return false;
-        }
-
-        public int hashCode(){
-            return playerSum + dealerCard + (usableAce ? 1 : 0);
-        }
-    }
-
-    // // Next, we need to create a class that represents the Q values for each state-action pair
-    // public class QValue {
-    //     State state;
-    //     int action;
-    //     double value;
+public class Blackjack {
+    // Represents a card in the deck
+    class Card {
+        public int rank;   // 1-13 (Ace, 2-10, Jack - 11, Queen - 12, King - 13)
+        public int suit;   // 0-3 (Clubs, Diamonds, Hearts, Spades)
     
-    //     public QValue(State state, int action, double value) {
-    //         this.state = state;
-    //         this.action = action;
-    //         this.value = value;
-    //     }
+        public Card(int rank, int suit) {
+            this.rank = rank;
+            this.suit = suit;
+        }
     
-    //     @Override
-    //     public boolean equals(Object obj) {
-    //         if (obj instanceof QValue) {
-    //             QValue q = (QValue) obj;
-    //             return q.state.equals(state) && q.action == action;
-    //         }
-    //         return false;
-    //     }
-    
-    //     @Override
-    //     public int hashCode() {
-    //         return state.hashCode() + action;
-    //     }
-    // }
-
-    // Now, we need to create a class that represents the Blackjack environment
-    public class BlackjackEnv{
-        // The environment is represented by the player's current sum, the dealer's face up card, and whether or not the player has a usable ace
-        int playerInitCard1, playerInitCard2, playerSum;
-        int dealerCard, dealerSum;
-        boolean usableAce, dealerUsableAce, playerStood;
-
-        public BlackjackEnv(){
-            // Initialize the environment by dealing two cards to the player and one card to the dealer
-            // Each card is between 1 and 13. if the card is 10, 11, 12, or 13, it is a 10
-            // If the card is 1, it is an ace
-            // An ace can either be 1 or 11
-            // If the player has <11 total, the ace is 11
-            // If the player has >11 total, the ace is 1
-            playerInitCard1 = (int) (Math.random() * 13) + 1;
-            playerInitCard2 = (int) (Math.random() * 13) + 1;
-            playerStood = false;
-            if(playerInitCard1 > 10){
-                playerInitCard1 = 10;
-            }
-            if(playerInitCard2 > 10){
-                playerInitCard2 = 10;
-            }
-            if(playerInitCard1 == 1 && playerInitCard2 == 1){
-                playerInitCard2 = 11;
-            }
-            if(playerInitCard1 == 1 && playerInitCard2 > 10){
-                playerInitCard1 = 11;
-            }
-            if(playerInitCard2 == 1 && playerInitCard1 > 10){
-                playerInitCard2 = 11;
-            }
-            if(playerInitCard1 == 1 && playerInitCard2 < 11){
-                playerInitCard1 = 11;
-            }
-            if(playerInitCard2 == 1 && playerInitCard1 < 11){
-                playerInitCard2 = 11;
-            }
-            dealerCard = (int) (Math.random() * 13) + 1;
-            if(dealerCard > 10){
-                dealerCard = 10;
-            }
-            usableAce = playerInitCard1 == 11 || playerInitCard2 == 11;
-            dealerSum = dealerCard;
-            playerSum = playerInitCard1 + playerInitCard2;
+        @Override
+        public String toString() {
+            String[] suits = {"Clubs", "Diamonds", "Hearts", "Spades"};
+            String[] ranks = {"Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King"};
+            return ranks[rank - 1] + " of " + suits[suit];
         }
 
-        public void reset(){
-            // Reset the environment by dealing two cards to the player and one card to the dealer
-            playerInitCard1 = (int) (Math.random() * 13) + 1;
-            playerInitCard2 = (int) (Math.random() * 13) + 1;
-            if(playerInitCard1 > 10){
-                playerInitCard1 = 10;
-            }
-            if(playerInitCard2 > 10){
-                playerInitCard2 = 10;
-            }
-            if(playerInitCard1 == 1 && playerInitCard2 == 1){
-                playerInitCard2 = 11;
-            }
-            else if(playerInitCard1 == 1 && playerInitCard2 > 10){
-                playerInitCard1 = 11;
-            }
-            else if(playerInitCard2 == 1 && playerInitCard1 > 10){
-                playerInitCard2 = 11;
-            }
-            else if(playerInitCard1 == 1 && playerInitCard2 < 11){
-                playerInitCard1 = 11;
-            }
-            else if(playerInitCard2 == 1 && playerInitCard1 < 11){
-                playerInitCard2 = 11;
-            }
-            dealerCard = (int) (Math.random() * 13) + 1;
-            if(dealerCard > 10){
-                dealerCard = 10;
-            }
-            usableAce = playerInitCard1 == 11 || playerInitCard2 == 11;
-            dealerSum = dealerCard;
-            playerStood = false;
-            playerSum = playerInitCard1 + playerInitCard2;
-        }
-
-        public void step(int action){
-            if(action == 0){
-                // Player hits
-                int card = (int) (Math.random() * 13) + 1;
-                if(card > 10){
-                    card = 10;
-                }
-                if(card == 1 && playerSum + 11 <= 21){
-                    card = 11;
-                }
-                playerSum += card;
-                if(playerSum > 21 && usableAce){
-                    playerSum -= 10;
-                    usableAce = false;
-                }
+        // Get the value of the card
+        public int getValue() {
+            if (rank >= 10) {
+                return 10; // Face cards (Jack, Queen, King)
+            } else if (rank == 1) {
+                return 1; // Ace is initially counted as 11
             } else {
-                // Player stands
-                playerStood = true;
-        
-                dealerUsableAce = dealerCard == 11;
-                while (dealerSum < 17 || (dealerSum == 17 && dealerUsableAce)) {
-                    int card = (int) (Math.random() * 13) + 1;
-                    if (card > 10) card = 10;
-                    if (card == 1) {
-                        if (dealerSum + 11 <= 21 && !dealerUsableAce) {
-                            card = 11;
-                            dealerUsableAce = true;
-                        } else {
-                            card = 1;
-                        }
-                    }
-                    dealerSum += card;
-                    if (dealerSum > 21 && dealerUsableAce) {
-                        dealerSum -= 10;
-                        dealerUsableAce = false;
-                    }
+                return rank; // Number cards
+            }
+        }
+    }
+    
+    // Represents a deck of cards
+    class Deck {
+        private final Card[] cards;         // Array to hold the cards
+        private int currentCard;            // Index of the next card to be dealt
+        private final Random random = new Random();
+
+        public Deck() {
+            cards = new Card[52];
+            currentCard = 0;
+            initializeDeck();
+        }
+
+        // Initialize the deck with 52 cards
+        private void initializeDeck() {
+            int index = 0;
+            for (int suit = 0; suit < 4; suit++) {
+                for (int rank = 1; rank <= 13; rank++) {
+                    cards[index++] = new Card(rank, suit);
                 }
             }
         }
-        
 
-        public boolean isTerminal(){
-            // Check if the game is over
-            // The dealer card is only one card and therefore cannot be over 21. 
-            // The dealer should bust if their total is over 21\
-            return playerSum > 21 || dealerSum > 21 || playerStood;
+        // Proper Fisher-Yates Shuffle
+        public void shuffle() {
+            for (int i = cards.length - 1; i > 0; i--) {
+                int j = random.nextInt(i + 1);
+                Card temp = cards[i];
+                cards[i] = cards[j];
+                cards[j] = temp;
+            }
+            currentCard = 0;  // Reset the deck position
         }
 
-        public int getReward(){
-            // Get the reward for the current state
-            // player bust
-            if(playerSum > 21){
-                return -1;
+        // Deal the next card
+        public Card dealCard() {
+            // Check if there are cards left to deal
+            if (currentCard < cards.length) {
+                return cards[currentCard++];
             }
-            // dealer bust
-            else if(dealerSum > 21){
-                return 1;
+            return null;  // No more cards in the deck
+        }
+
+
+        // Print all cards
+        public void printDeck() {
+            for (Card card : cards) {
+                System.out.println(card);
             }
-            // player sum is greater than dealer sum
-            else if(playerSum > dealerSum){
-                return 1;
-            }
-            // player sum is less than dealer sum
-            else if(playerSum < dealerSum){
-                return -1;
-            }
-            // player sum is equal to dealer sum
-            else{
-                return 0;
-            }  
         }
     }
 
-    // Now, we need to create a class that represents the Q learning agent
-    public class QLearningAgent{
-        // The agent is represented by the Q values for each state-action pair
-        double alpha;
-        double gamma;
-        double epsilon;
-        double[][][][] q; // indexed by player sum, dealer card, usable ace, and action
-
-        public QLearningAgent(double alpha, double gamma, double epsilon){
-            q = new double[32][11][2][2]; 
-            this.alpha = alpha;
-            this.gamma = gamma;
-            this.epsilon = epsilon;
-            for (int ps = 0; ps < 32; ps++) {
-                for (int dc = 1; dc < 11; dc++) {
-                    for (int ua = 0; ua < 2; ua++) {
-                        for (int a = 0; a < 2; a++) {
-                            q[ps][dc][ua][a] = 0; // optimistic guess
-                        }
-                    }
-                }
-            }
-        }
-
-        //Get action for state
-        public int getAction(State state){
-            int ps = Math.min(Math.max(state.playerSum, 0), 31);
-            int dc = Math.min(Math.max(state.dealerCard, 1), 10);
-            int ua = state.usableAce ? 1 : 0;
-        
-            if (Math.random() < epsilon) {
-                return Math.random() < 0.5 ? 0 : 1; // Random: Hit or Stand
-            }
-        
-            int bestAction = 0;
-            double maxQ = Double.NEGATIVE_INFINITY;
-        
-            for (int action = 0; action < 2; action++) {
-                double value = q[ps][dc][ua][action];
-                if (value > maxQ) {
-                    maxQ = value;
-                    bestAction = action;
-                }
-            }
-        
-            return bestAction;
-        }
-
-        public void updateQValue(State state, int action, double reward, State nextState, boolean isTerminal) {
-            // Update the Q value for the given state-action pair
-            // QValue qValue = new QValue(state, action, 0);
-            int ps = Math.min(state.playerSum, 31);
-            int dc = Math.min(Math.max(state.dealerCard, 1), 10);
-            int ua = state.usableAce ? 1 : 0;
-
-            int nextPs = Math.min(nextState.playerSum, 31);
-            int nextDc = Math.min(Math.max(nextState.dealerCard, 1), 10);
-            int nextUa = nextState.usableAce ? 1 : 0;
-
-            double oldQ = q[ps][dc][ua][action];
-            double maxQNext = isTerminal ? 0 : Math.max(q[nextPs][nextDc][nextUa][0], q[nextPs][nextDc][nextUa][1]);
-
-            double newQ = oldQ + alpha * (reward + gamma * maxQNext - oldQ);
-            q[ps][dc][ua][action] = newQ;
+    //Data members of the Blackjack class
+    private Deck deck;
+    ArrayList<Card> playerHand, dealerHand;
+    int playerScore, dealerScore;
+    boolean playerStood;
+    boolean playerUsableAce, dealerUsableAce;
+    int shownCardValue;
     
-          
+    // Constructor to set up the game
+    public Blackjack() {
+        deck = new Deck();
+        deck.shuffle();             // Shuffle the deck at the start
+    
+        playerHand = new ArrayList<>();  // Player's hand
+        dealerHand = new ArrayList<>();  // Dealer's hand
+        
+        playerHand.add(deck.dealCard()); // Deal first card to player
+        dealerHand.add(deck.dealCard()); // Deal second card to dealer 
+        playerHand.add(deck.dealCard()); // Deal third card to player
+        dealerHand.add(deck.dealCard()); // Deal fourth card to dealer
+
+        playerScore = calculateScore(playerHand, true); // Calculate player's score
+        dealerScore = calculateScore(dealerHand, false); // Calculate dealer's score
+
+        // The first card of the dealer is shown to the player
+        shownCardValue = dealerHand.get(0).getValue();
+        // shownCardValue = (shownCardValue == 1) ? 11 : shownCardValue; 
+    }
+
+    // Calculate the score of a hand
+    // It counts the number of aces and adjusts the score accordingly
+    // Aces can be counted as 1 or 11, depending on the total score
+    private int calculateScore(ArrayList<Card> hand, boolean isPlayer) {
+        int score = 0;
+        int aces = 0;
+        boolean usableAce = false;
+    
+        for (Card card : hand) {
+            if (card.getValue() == 1) {
+                aces++; // Count the number of aces
+            } else {
+                score += card.getValue(); // Add the value of the card to the score
+
+            }
+        }
+    
+        // Adjust for aces
+        while (aces > 0) {
+            // Try to count the ace as 11 if it doesn't bust the score
+            if (score + 11 <= 21) {
+                score += 11;
+                usableAce = true; // Ace is usable as 11
+            } else {
+                score += 1; // Count ace as 1
+            }
+            aces--;
         }
 
-        //Train the agent for a given number of episodes
+        // Update the global usableAce for the player or dealer
+        if (isPlayer) {
+            playerUsableAce = usableAce; // Track the player's usable ace
+        } else {
+            dealerUsableAce = usableAce; // Track the dealer's usable ace
+        }
+
+        return score;
+    }
+
+    public void step(int action){
+        //Hit
+        if(action == 0){
+            playerHand.add(deck.dealCard()); // Player hits
+            playerScore = calculateScore(playerHand, true); // Update player's scor
+        }
+        //Stand
+        else if(action == 1){
+            playerStood = true; // Player stands
+            
+            // Dealer's turn
+            // Dealer hits until score is 17 or higher
+            while(dealerScore < 17){
+                dealerHand.add(deck.dealCard()); // Dealer hits
+                dealerScore = calculateScore(dealerHand, false); // Update dealer's score
+            }
+
+        }
+    }
+
+    // Check if the either the player or dealer won
+    public boolean isTerminal() {
+        return playerStood || playerScore > 21 || dealerScore > 21;
+    }
+
+    public int getReward() {
+        // Check if player busted
+        if (playerScore > 21) {
+            return -1; // Player loses
+        }
+        // Check if dealer busted
+        else if (dealerScore > 21) {
+            return 1; // Player wins
+        }
+        // Check for a tie
+        else if (playerScore == dealerScore) {
+            return 0; // Tie
+        }
+        // Check if player wins
+        else if (playerScore > dealerScore) {
+            return 1; // Player wins
+        }
+        // Dealer wins
+        return -1; // Player loses
+    }
+
+    class BJQlearning {
+        Random random = new Random();
+        double[][][][] qTable; // Q-table for state-action values
+        double alpha;   // Learning rate
+        double gamma; // Discount factor for future rewards
+        double epsilon; // Exploration rate for epsilon-greedy policy
+
+        // Constructor to initialize the Q-learning parameters
+        public BJQlearning(double alpha, double gamma, double epsilon) {
+            // Initialize Q-table with dimensions for player score, dealer score, usable ace, and action
+            // 30 possible player scores (2-31), 10 dealer scores (1-10) - treat 1 as 11,
+            // 2 usable ace states (0 or 1), and 2 actions (hit or stick)
+            qTable = new double[33][12][2][2]; 
+            this.alpha = alpha; // Set learning rate
+            this.gamma = gamma; // Set discount factor
+            this.epsilon = epsilon; // Set exploration rate
+        }
+
+        public int chooseAction(int playerScore, int dealerShownCard, boolean usableAce) {
+            // Epsilon-greedy policy for action selection
+            if (random.nextDouble() < epsilon) {
+                return random.nextInt(2); // Random action (0 or 1)
+            } else {
+                // Choose the action with the highest Q-value
+                int usableAceIndex = usableAce ? 1 : 0; // Convert boolean to index
+
+               
+                return qTable[playerScore][dealerShownCard][usableAceIndex][0] >
+                        qTable[playerScore][dealerShownCard][usableAceIndex][1] ? 0 : 1;
+            }
+        }
+
+        // Q-learning update rule for the Q-table
+        public void update(int playerScore, int dealerShownCard, boolean usableAce, int action, int reward, int newPlayerScore, int newDealerCard, boolean newUsableAce) {
+            int actionIdx = (action == 0) ? 0 : 1;  // 0 -> hit, 1 -> stay
+            double oldValue = qTable[playerScore][dealerShownCard][usableAce ? 1 : 0][actionIdx];  // Get current Q-value
+
+            // Get the maximum Q-value for the next state
+            double futureMax = Math.max(qTable[newPlayerScore][newDealerCard][newUsableAce ? 1 : 0][0],
+                                        qTable[newPlayerScore][newDealerCard][newUsableAce ? 1 : 0][1]);
+
+            // Update the Q-value using the Q-learning formula
+            qTable[playerScore][dealerShownCard][usableAce ? 1 : 0][actionIdx] = oldValue +
+                    alpha * (reward + gamma * futureMax - oldValue);
+        }
+
         public void train(int episodes) {
-            double minEpsilon = 0.01;  // Minimum exploration rate
-            double decayRate = Math.pow(minEpsilon / epsilon, 1.0 / episodes);
-            int decayStart = episodes / 2;
-
             for (int i = 0; i < episodes; i++) {
-                BlackjackEnv env = new BlackjackEnv();
-                State state = new State(env.playerSum, env.dealerCard, env.usableAce);
-                
-                while (!env.isTerminal()) {
-                   
-                    int action = getAction(state);
-                    env.step(action);
-                    State nextState = new State(env.playerSum, env.dealerCard, env.usableAce);
-                    boolean terminal = env.isTerminal();
-                    int reward = terminal ? env.getReward() : 0;
-                    
-                    updateQValue(state, action, reward, nextState, terminal);
-
-                    if(env.isTerminal()){
-                        break;
-                    }
-                    state = nextState;
+                Blackjack game = new Blackjack(); // Create a new game instance for each episode
+        
+                // While the game is still going on (not terminal)
+                while (!game.isTerminal()) {
+                    int playerScore = game.playerScore;
+                    int dealerShownCard = game.shownCardValue;
+                    boolean usableAce = game.playerUsableAce;
+        
+                    // Choose an action using the epsilon-greedy policy
+                    int action = chooseAction(playerScore, dealerShownCard, usableAce);
+        
+                    // Take a step in the game (player action)
+                    game.step(action);
+        
+                    // Get the new state after the action
+                    int newPlayerScore = game.playerScore;
+                    boolean newUsableAce = game.playerUsableAce;
+                    int newDealerCard = game.shownCardValue;
+        
+                    // Get the reward for this step
+                    int reward = game.getReward();
+        
+                    // Update the Q-table
+                    update(playerScore, dealerShownCard, usableAce, action, reward, newPlayerScore, newDealerCard, newUsableAce);
                 }
         
-                // Gradually decay epsilon
-                if (i > decayStart) 
-                epsilon *= decayRate;
+                // Decay epsilon
+                epsilon = epsilon * 0.9999; // Ensure epsilon doesn't go below 0.01
             }
         }
     }
 
-    //Method for finding the optimal policy
-    public void findOptimalPolicy(QLearningAgent agent){
-        // Find the optimal policy for the agent
-        for(int playerSum = 12; playerSum <= 21; playerSum++){
-            for(int dealerCard = 1; dealerCard <= 10; dealerCard++){
-                // usable ace switches between true and false
-                for(boolean usableAce : new boolean[]{true, false}){
-                State state = new State(playerSum, dealerCard, usableAce);
-                    int action = agent.getAction(state);
-                    System.out.println("Player Sum: " + playerSum + ", Dealer Card: " + dealerCard + ", Usable Ace: " + usableAce + ", Action: " + (action == 0 ? "Hit" : "Stand"));
-                }
+ 
+    public static void main(String[] args) {
+        // Create a Blackjack2 instance to test the game
+        Blackjack game = new Blackjack();
+        
+        // Set Q-learning parameters: alpha, gamma, epsilon
+        double alpha = .05;   // Learning rate
+        double gamma = .05;     // Discount factor
+        double epsilon = .1 ; // Exploration rate
+        
+        // Create an instance of the Q-learning agent
+        BJQlearning agent = game.new BJQlearning(alpha, gamma, epsilon);
+        
+        // Train the agent with a certain number of episodes
+        int episodes = 1_000_000;  // Number of training episodes
+        agent.train(episodes);
+        
+        // After training, print the optimal policy for a range of player scores and dealer's shown card
+        System.out.println("\nOptimal Policy:");
+        printPolicyTable(agent, true);
+        System.out.println();
+        System.out.println();
+        printPolicyTable(agent, false);
+        
+        // Play 1000 games using the trained Q-learning agent
+        int totalWins = 0;
+        int totalLosses = 0;
+        int totalTies = 0;
+        
+        int numGames = 1_000_000;
+        for (int i = 0; i < numGames; i++) {
+            Blackjack gameInstance = new Blackjack(); // Create a new game instance
+            
+            // Play the game until it's terminal
+            while (!gameInstance.isTerminal()) {
+                int playerScore = gameInstance.playerScore;
+                int dealerCard = gameInstance.shownCardValue;
+                boolean usableAce = gameInstance.playerUsableAce;
+                
+                // Choose an action using the epsilon-greedy policy
+                int action = agent.chooseAction(playerScore, dealerCard, usableAce);
+                
+                // Take a step in the game (player action)
+                gameInstance.step(action);
             }
-        }
-    }
-
-    public static void main(String[] args){
-        // Create a Q learning agent with alpha = 0.1, gamma = 0.9, and epsilon = 0.1
-        Blackjack blackjack = new Blackjack();
-        QLearningAgent agent = blackjack.new QLearningAgent(.1, 1, .05);
-        // Train the agent for 1000 episodes
-        agent.train(10000000);
-
-        // Find the optimal policy for the agent
-        System.out.println("Optimal Policy:");
-        blackjack.findOptimalPolicy(agent);
-
-        // Test the agent by playing 100 games and print the results while playing
-        int wins = 0;
-        int losses = 0;
-        int ties = 0;
-        for (int i = 0; i < 100; i++){
-            BlackjackEnv env = blackjack.new BlackjackEnv();
-            State state = blackjack.new State(env.playerSum, env.dealerCard, env.usableAce);
-            while (!env.isTerminal()){
-                int action = agent.getAction(state);
-                env.step(action);
-                State nextState = blackjack.new State(env.playerSum, env.dealerCard, env.usableAce);
-                state = nextState;
-            }
-
-            int reward = env.getReward();
-            if (reward == 1){
-                wins++;
-            } else if (reward == -1){
-                losses++;
+            
+            // Get the reward for this game
+            int reward = gameInstance.getReward();
+            
+            // Track wins, losses, and ties
+            if (reward == 1) {
+                totalWins++;
+            } else if (reward == -1) {
+                totalLosses++;
             } else {
-                ties++;
+                totalTies++;
             }
-       
-         //   System.out.println("Game " + (i + 1) + ": " + (reward == 1 ? "Win" : reward == -1 ? "Loss" : "Tie"));
         }
-        System.out.println("Wins: " + wins);
-        System.out.println("Losses: " + losses);
-        System.out.println("Ties: " + ties);
+        
+        // Print the results of the 1000 games
+        System.out.println("\nResults after 1_000_000 games:");
+        System.out.println("Wins: " + totalWins);
+        System.out.println("Losses: " + totalLosses);
+        System.out.println("Ties: " + totalTies);
     }
+    
+    // Helper method to print a single table for either usable or non-usable ace
+    private static void printPolicyTable(BJQlearning agent, boolean usableAce) {
+        // Print header: A separately, then 2 → 10
+        System.out.print("    ");               // Space for row labels  
+        for (int dealerCard = 1; dealerCard <= 10; dealerCard++) {
+            System.out.printf("%4d", dealerCard);
+        }
+        System.out.println();
 
+        // Iterate over player scores (12 → 21)
+        for (int playerScore = 21; playerScore >= 12 ; playerScore--) {
+            System.out.printf("%4d", playerScore); // Print player score
 
+            for (int dealerCard = 1; dealerCard <= 10; dealerCard++) {
+                // Get the action: 0 for hit, 1 for stand
+                
+                int action = agent.chooseAction(playerScore, dealerCard, usableAce);
+
+                // Print "H" for Hit and "S" for Stand
+                System.out.printf("%4s", action == 0 ? " " : "S");
+            }
+            System.out.println();
+        }
+    }
 }
-
