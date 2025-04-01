@@ -65,14 +65,6 @@ public class Blackjack {
             }
             return null;  // No more cards in the deck
         }
-
-
-        // Print all cards
-        public void printDeck() {
-            for (Card card : cards) {
-                System.out.println(card);
-            }
-        }
     }
 
     //Data members of the Blackjack class
@@ -90,11 +82,11 @@ public class Blackjack {
     
         playerHand = new ArrayList<>();  // Player's hand
         dealerHand = new ArrayList<>();  // Dealer's hand
-        
-        playerHand.add(deck.dealCard()); // Deal first card to player
+
         dealerHand.add(deck.dealCard()); // Deal second card to dealer 
         playerHand.add(deck.dealCard()); // Deal third card to player
         dealerHand.add(deck.dealCard()); // Deal fourth card to dealer
+        playerHand.add(deck.dealCard()); // Deal first card to player
 
         playerScore = calculateScore(playerHand, true); // Calculate player's score
         dealerScore = calculateScore(dealerHand, false); // Calculate dealer's score
@@ -154,11 +146,11 @@ public class Blackjack {
             
             // Dealer's turn
             // Dealer hits until score is 17 or higher
-            while(dealerScore < 17){
+            while (dealerScore < 17 || (dealerScore == 17 && dealerUsableAce)) {
                 dealerHand.add(deck.dealCard()); // Dealer hits
                 dealerScore = calculateScore(dealerHand, false); // Update dealer's score
             }
-
+            
         }
     }
 
@@ -200,7 +192,7 @@ public class Blackjack {
             // Initialize Q-table with dimensions for player score, dealer score, usable ace, and action
             // 30 possible player scores (2-31), 10 dealer scores (1-10) - treat 1 as 11,
             // 2 usable ace states (0 or 1), and 2 actions (hit or stick)
-            qTable = new double[33][12][2][2]; 
+            qTable = new double[32][12][2][2]; 
             this.alpha = alpha; // Set learning rate
             this.gamma = gamma; // Set discount factor
             this.epsilon = epsilon; // Set exploration rate
@@ -263,20 +255,20 @@ public class Blackjack {
                 }
         
                 // Decay epsilon
-                epsilon = epsilon * 0.9999; // Ensure epsilon doesn't go below 0.01
+                epsilon = Math.max(0.025, epsilon * 0.995);
             }
         }
     }
 
- 
+
     public static void main(String[] args) {
         // Create a Blackjack2 instance to test the game
         Blackjack game = new Blackjack();
         
         // Set Q-learning parameters: alpha, gamma, epsilon
-        double alpha = .05;   // Learning rate
-        double gamma = .05;     // Discount factor
-        double epsilon = .1 ; // Exploration rate
+        double alpha = .03;   // Learning rate
+        double gamma = .03;     // Discount factor
+        double epsilon = 0.2 ; // Exploration rate
         
         // Create an instance of the Q-learning agent
         BJQlearning agent = game.new BJQlearning(alpha, gamma, epsilon);
@@ -297,7 +289,7 @@ public class Blackjack {
         int totalLosses = 0;
         int totalTies = 0;
         
-        int numGames = 1_000_000;
+        int numGames = 100_000;
         for (int i = 0; i < numGames; i++) {
             Blackjack gameInstance = new Blackjack(); // Create a new game instance
             
