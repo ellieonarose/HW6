@@ -184,18 +184,21 @@ public class Blackjack {
         Random random = new Random();
         double[][][][] qTable; // Q-table for state-action values
         double alpha;   // Learning rate
-        double gamma; // Discount factor for future rewards
+        double gammaUsableAce, gammaNoUsableAce; // Discount factor for future rewards
         double epsilon; // Exploration rate for epsilon-greedy policy
 
         // Constructor to initialize the Q-learning parameters
-        public BJQlearning(double alpha, double gamma, double epsilon) {
+        public BJQlearning(double alpha, double gammaUsableAce, double gammaNoUsableAce, double epsilon) {
             // Initialize Q-table with dimensions for player score, dealer score, usable ace, and action
             // 30 possible player scores (2-31), 10 dealer scores (1-10) - treat 1 as 11,
             // 2 usable ace states (0 or 1), and 2 actions (hit or stick)
             qTable = new double[32][12][2][2]; 
             this.alpha = alpha; // Set learning rate
-            this.gamma = gamma; // Set discount factor
+            this.gammaUsableAce = gammaUsableAce; // Set discount factor
+            this.gammaNoUsableAce = gammaNoUsableAce; // Set discount factor
             this.epsilon = epsilon; // Set exploration rate
+
+
         }
 
         public int chooseAction(int playerScore, int dealerShownCard, boolean usableAce) {
@@ -212,19 +215,28 @@ public class Blackjack {
             }
         }
 
-        // Q-learning update rule for the Q-table
-        public void update(int playerScore, int dealerShownCard, boolean usableAce, int action, int reward, int newPlayerScore, int newDealerCard, boolean newUsableAce) {
-            int actionIdx = (action == 0) ? 0 : 1;  // 0 -> hit, 1 -> stay
-            double oldValue = qTable[playerScore][dealerShownCard][usableAce ? 1 : 0][actionIdx];  // Get current Q-value
+       
 
-            // Get the maximum Q-value for the next state
-            double futureMax = Math.max(qTable[newPlayerScore][newDealerCard][newUsableAce ? 1 : 0][0],
-                                        qTable[newPlayerScore][newDealerCard][newUsableAce ? 1 : 0][1]);
+        public void update(int ps, int dc, boolean ua, int action, int reward, int nextPs, int nextDc, boolean nextUa, boolean terminal) {
+            int actionIdx = action; // 0 -> hit, 1 -> stay
+            double oldQ = qTable[ps][dc][ua ? 1 : 0][actionIdx]; // Get current Q-value
+            
+            double futureMax = 0;
+            if (!terminal) {
+                futureMax = Math.max(
+                    qTable[nextPs][nextDc][nextUa ? 1 : 0][0],
+                    qTable[nextPs][nextDc][nextUa ? 1 : 0][1]
+                );
+            }
+            
+            // Get the gamma value to use based on whether the next state has a usable ace or not
+            double gammaToUse = ua ? gammaUsableAce : gammaNoUsableAce;
 
             // Update the Q-value using the Q-learning formula
-            qTable[playerScore][dealerShownCard][usableAce ? 1 : 0][actionIdx] = oldValue +
-                    alpha * (reward + gamma * futureMax - oldValue);
+            double newQ = oldQ + alpha * (reward + gammaToUse * futureMax - oldQ);
+            qTable[ps][dc][ua ? 1 : 0][actionIdx] = newQ;
         }
+        
 
         public void train(int episodes) {
             for (int i = 0; i < episodes; i++) {
@@ -251,7 +263,18 @@ public class Blackjack {
                     int reward = game.getReward();
         
                     // Update the Q-table
-                    update(playerScore, dealerShownCard, usableAce, action, reward, newPlayerScore, newDealerCard, newUsableAce);
+                    if (game.isTerminal()) {
+                        reward = game.getReward();
+                        update(playerScore, dealerShownCard, usableAce, action, reward, playerScore, dealerShownCard, usableAce, true);
+                        break;
+                    } else {
+                        reward = game.getReward();
+                        update(playerScore, dealerShownCard, usableAce, action, reward, newPlayerScore, newDealerCard, newUsableAce, false);
+                        playerScore = newPlayerScore;
+                        dealerShownCard = newDealerCard;
+                        usableAce = newUsableAce;
+                    }
+                    
                 }
         
                 // Decay epsilon
@@ -266,12 +289,13 @@ public class Blackjack {
         Blackjack game = new Blackjack();
         
         // Set Q-learning parameters: alpha, gamma, epsilon
-        double alpha = .03;   // Learning rate
-        double gamma = .03;     // Discount factor
-        double epsilon = 0.2 ; // Exploration rate
+        double alpha = .055;   // Learning rate
+        double gammaUsableAce = .03;     // Discount factor
+        double gammaNoUsableAce = .15;   // Discount factor
+        double epsilon = 0.09 ; // Exploration rate
         
         // Create an instance of the Q-learning agent
-        BJQlearning agent = game.new BJQlearning(alpha, gamma, epsilon);
+        BJQlearning agent = game.new BJQlearning(alpha, gammaUsableAce, gammaNoUsableAce, epsilon);
         
         // Train the agent with a certain number of episodes
         int episodes = 1_000_000;  // Number of training episodes
