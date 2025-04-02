@@ -255,13 +255,10 @@ public class Blackjack {
                     boolean newUsableAce = game.playerUsableAce;
                     int newDealerCard = game.shownCardValue;
         
-                    // Get the reward for this step
-                    int reward = game.getReward();
-        
                     // Update the Q-table
 
                     boolean terminal = game.isTerminal();
-                    reward = game.getReward();
+                    int reward = game.getReward();
 
                     int nextPlayerScore = terminal ? playerScore : newPlayerScore;
                     int nextDealerCard = terminal ? dealerShownCard : newDealerCard;
