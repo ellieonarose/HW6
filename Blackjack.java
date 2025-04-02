@@ -214,15 +214,6 @@ public class Blackjack {
             }
         }
 
-        // Greedy action selection
-        public int greedyAction(int playerScore, int dealerShownCard, boolean usableAce) {
-            int usableAceIndex = usableAce ? 1 : 0;
-            // Choose the action with the highest Q-value
-            double hitQ = qTable[playerScore][dealerShownCard][usableAceIndex][0];
-            double stickQ = qTable[playerScore][dealerShownCard][usableAceIndex][1];
-            return hitQ > stickQ ? 0 : 1;
-        }
-        
 
         public void update(int ps, int dc, boolean ua, int action, int reward, int nextPs, int nextDc, boolean nextUa, boolean terminal) {
             int actionIdx = action; // 0 -> hit, 1 -> stay
@@ -334,7 +325,7 @@ public class Blackjack {
                 
                 // Choose an action using the epsilon-greedy policy
                 //int action = agent.chooseAction(playerScore, dealerCard, usableAce);
-                int action = agent.greedyAction(playerScore, dealerCard, usableAce);
+                int action = agent.chooseAction(playerScore, dealerCard, usableAce);
 
                 
                 // Take a step in the game (player action)
