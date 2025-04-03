@@ -4,21 +4,17 @@ import java.util.Random;
 public class Blackjack {
     // Represents a deck of cards
     class Deck {
-        private final int[] cards;  // Array to hold the cards (1–13 for ranks)
+        private final int[] cards;  // Array to hold the cards 
         private int currentCard;    // Index of the next card to be dealt
         private final Random random = new Random();
 
         public Deck() {
             cards = new int[52];
-            initializeDeck();
-        }
-
-        // Initialize the deck with 52 cards (1–13 repeated for 4 suits)
-        private void initializeDeck() {
+            currentCard = 0;
+            
             for (int i = 0; i < 52; i++) {
                 cards[i] = (i % 13) + 1;  // Card ranks: 1–13 ( Ace 2-10, Jack, Queen, King )           
             }
-            currentCard = 0;
         }
 
         // Shuffle the deck using Fisher-Yates Shuffle
@@ -182,7 +178,7 @@ public class Blackjack {
 
                
                 return qTable[playerScore][dealerShownCard][usableAceIndex][HIT] >
-                        qTable[playerScore][dealerShownCard][usableAceIndex][STAND] ? 0 : 1;
+                        qTable[playerScore][dealerShownCard][usableAceIndex][STAND] ? HIT : STAND;
             }
         }
 
@@ -243,8 +239,6 @@ public class Blackjack {
                     playerScore = nextPlayerScore;
                     dealerShownCard = nextDealerCard;
                     usableAce = nextUsableAce;
-
-                    
                 }
         
                 // Decay epsilon
@@ -267,7 +261,7 @@ public class Blackjack {
         BJQlearning agent = game.new BJQlearning(alpha, gamma, epsilon);
         
         // Train the agent with a certain number of episodes
-        int episodes = 100_000;  // Number of training episodes
+        int episodes = 1_000_000;  // Number of training episodes
         agent.train(episodes);
         
         // After training, print the optimal policy for a range of player scores and dealer's shown card
