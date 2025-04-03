@@ -1,56 +1,31 @@
-import java.util.Random;
 import java.util.ArrayList;
+import java.util.Random;
 
 public class Blackjack {
-    // Represents a card in the deck
-    class Card {
-        public int rank;   // 1-13 (Ace, 2-10, Jack - 11, Queen - 12, King - 13)
-        public int suit;   // 0-3 (Clubs, Diamonds, Hearts, Spades)
-    
-        public Card(int rank, int suit) {
-            this.rank = rank;
-            this.suit = suit;
-        }
-
-        // Get the value of the card
-        public int getValue() {
-            if (rank >= 10) {
-                return 10; // Face cards (Jack, Queen, King)
-            } else if (rank == 1) {
-                return 1; 
-            } else {
-                return rank; // Number cards
-            }
-        }
-    }
-    
     // Represents a deck of cards
     class Deck {
-        private final Card[] cards;         // Array to hold the cards
-        private int currentCard;            // Index of the next card to be dealt
+        private final int[] cards;  // Array to hold the cards (1–13 for ranks)
+        private int currentCard;    // Index of the next card to be dealt
         private final Random random = new Random();
 
         public Deck() {
-            cards = new Card[52];
-            currentCard = 0;
+            cards = new int[52];
             initializeDeck();
         }
 
-        // Initialize the deck with 52 cards
+        // Initialize the deck with 52 cards (1–13 repeated for 4 suits)
         private void initializeDeck() {
-            int index = 0;
-            for (int suit = 0; suit < 4; suit++) {
-                for (int rank = 1; rank <= 13; rank++) {
-                    cards[index++] = new Card(rank, suit);
-                }
+            for (int i = 0; i < 52; i++) {
+                cards[i] = (i % 13) + 1;  // Card ranks: 1–13 ( Ace 2-10, Jack, Queen, King )           
             }
+            currentCard = 0;
         }
 
-        // Proper Fisher-Yates Shuffle
+        // Shuffle the deck using Fisher-Yates Shuffle
         public void shuffle() {
             for (int i = cards.length - 1; i > 0; i--) {
                 int j = random.nextInt(i + 1);
-                Card temp = cards[i];
+                int temp = cards[i];
                 cards[i] = cards[j];
                 cards[j] = temp;
             }
@@ -58,129 +33,126 @@ public class Blackjack {
         }
 
         // Deal the next card
-        public Card dealCard() {
-            // Check if there are cards left to deal
+        public int dealCard() {
             if (currentCard < cards.length) {
                 return cards[currentCard++];
             }
-            return null;  // No more cards in the deck
+            return -1;  // No more cards in the deck
         }
     }
 
-    //Data members of the Blackjack class
+    // Data members of the Blackjack class
     private Deck deck;
-    ArrayList<Card> playerHand, dealerHand;
+    ArrayList<Integer> playerHand, dealerHand;
     int playerScore, dealerScore;
     boolean playerStood;
     boolean playerUsableAce, dealerUsableAce;
     int shownCardValue;
-    
+
     // Constructor to set up the game
     public Blackjack() {
         deck = new Deck();
-        deck.shuffle();             // Shuffle the deck at the start
-    
-        playerHand = new ArrayList<>();  // Player's hand
-        dealerHand = new ArrayList<>();  // Dealer's hand
+        deck.shuffle();  // Shuffle the deck at the start
 
-        dealerHand.add(deck.dealCard()); // Deal second card to dealer 
-        playerHand.add(deck.dealCard()); // Deal third card to player
-        dealerHand.add(deck.dealCard()); // Deal fourth card to dealer
-        playerHand.add(deck.dealCard()); // Deal first card to player
+        playerHand = new ArrayList<>();
+        dealerHand = new ArrayList<>();
 
-        playerScore = calculateScore(playerHand, true); // Calculate player's score
-        dealerScore = calculateScore(dealerHand, false); // Calculate dealer's score
+        // Deal initial cards
+        dealerHand.add(deck.dealCard());
+        playerHand.add(deck.dealCard());
+        dealerHand.add(deck.dealCard());
+        playerHand.add(deck.dealCard());
+
+        // Calculate scores
+        playerScore = calculateScore(playerHand, true);
+        dealerScore = calculateScore(dealerHand, false);
 
         // The first card of the dealer is shown to the player
-        shownCardValue = dealerHand.get(0).getValue();
+        shownCardValue = getCardValue(dealerHand.get(0));
+    }
+
+    // Calculate the value of a card
+    private int getCardValue(int card) {
+        return card > 10 ? 10 : card;  // Face cards (11, 12, 13) are worth 10
     }
 
     // Calculate the score of a hand
-    // It counts the number of aces and adjusts the score accordingly
-    // Aces can be counted as 1 or 11, depending on the total score
-    private int calculateScore(ArrayList<Card> hand, boolean isPlayer) {
+    private int calculateScore(ArrayList<Integer> hand, boolean isPlayer) {
         int score = 0;
         int aces = 0;
         boolean usableAce = false;
-    
-        for (Card card : hand) {
-            if (card.getValue() == 1) {
-                aces++; // Count the number of aces
-            } else {
-                score += card.getValue(); // Add the value of the card to the score
 
+        for (int card : hand) {
+            if (card == 1) {
+                aces++;  // Count the number of aces
+            } else {
+                score += getCardValue(card);  // Add the value of the card to the score
             }
         }
-    
+
         // Adjust for aces
         while (aces > 0) {
-            // Try to count the ace as 11 if it doesn't bust the score
             if (score + 11 <= 21) {
                 score += 11;
-                usableAce = true; // Ace is usable as 11
+                usableAce = true;  // Ace is usable as 11
             } else {
-                score += 1; // Count ace as 1
+                score += 1;  // Count ace as 1
             }
             aces--;
         }
 
         // Update the global usableAce for the player or dealer
         if (isPlayer) {
-            playerUsableAce = usableAce; // Track the player's usable ace
+            playerUsableAce = usableAce;
         } else {
-            dealerUsableAce = usableAce; // Track the dealer's usable ace
+            dealerUsableAce = usableAce;
         }
 
         return score;
     }
 
-    public void step(int action){
-        //Hit
-        if(action == 0){
-            playerHand.add(deck.dealCard()); // Player hits
-            playerScore = calculateScore(playerHand, true); // Update player's scor
+    public void step(int action) {
+        // Hit
+        if (action == 0) {
+            playerHand.add(deck.dealCard());  // Player hits
+            playerScore = calculateScore(playerHand, true);  // Update player's score
         }
-        //Stand
-        else if(action == 1){
-            playerStood = true; // Player stands
-            
+        // Stand
+        else if (action == 1) {
+            playerStood = true;  // Player stands
+
             // Dealer's turn
             // Dealer hits until score is 17 or higher
             while (dealerScore < 17 || (dealerScore == 17 && dealerUsableAce)) {
-                dealerHand.add(deck.dealCard()); // Dealer hits
-                dealerScore = calculateScore(dealerHand, false); // Update dealer's score
+                dealerHand.add(deck.dealCard());  // Dealer hits
+                dealerScore = calculateScore(dealerHand, false);  // Update dealer's score
             }
-            
         }
     }
 
-    // Check if the either the player or dealer won
+    // Check if the game is over
     public boolean isTerminal() {
         return playerStood || playerScore > 21 || dealerScore > 21;
     }
 
+    // Get the reward for the game
     public int getReward() {
-        // Check if player busted
         if (playerScore > 21) {
-            return -1; // Player loses
+            return -1;  // Player loses
+        } else if (dealerScore > 21) {
+            return 1;  // Player wins
+        } else if (playerScore == dealerScore) {
+            return 0;  // Tie
+        } else if (playerScore > dealerScore) {
+            return 1;  // Player wins
         }
-        // Check if dealer busted
-        else if (dealerScore > 21) {
-            return 1; // Player wins
-        }
-        // Check for a tie
-        else if (playerScore == dealerScore) {
-            return 0; // Tie
-        }
-        // Check if player wins
-        else if (playerScore > dealerScore) {
-            return 1; // Player wins
-        }
-        // Dealer wins
-        return -1; // Player loses
+        return -1;  // Dealer wins
     }
 
     class BJQlearning {
+        public static final int HIT = 0; // Action: Hit
+        public static final int STAND = 1; // Action: Stand
+
         Random random = new Random();
         double[][][][] qTable; // Q-table for state-action values
         double alpha;   // Learning rate
@@ -209,21 +181,21 @@ public class Blackjack {
                 int usableAceIndex = usableAce ? 1 : 0; // Convert boolean to index
 
                
-                return qTable[playerScore][dealerShownCard][usableAceIndex][0] >
-                        qTable[playerScore][dealerShownCard][usableAceIndex][1] ? 0 : 1;
+                return qTable[playerScore][dealerShownCard][usableAceIndex][HIT] >
+                        qTable[playerScore][dealerShownCard][usableAceIndex][STAND] ? 0 : 1;
             }
         }
 
 
         public void update(int ps, int dc, boolean ua, int action, int reward, int nextPs, int nextDc, boolean nextUa, boolean terminal) {
-            int actionIdx = action; // 0 -> hit, 1 -> stay
+            int actionIdx = action; 
             double oldQ = qTable[ps][dc][ua ? 1 : 0][actionIdx]; // Get current Q-value
             
             double futureMax = 0;
             if (!terminal) {
                 futureMax = Math.max(
-                    qTable[nextPs][nextDc][nextUa ? 1 : 0][0],
-                    qTable[nextPs][nextDc][nextUa ? 1 : 0][1]
+                    qTable[nextPs][nextDc][nextUa ? 1 : 0][HIT],
+                    qTable[nextPs][nextDc][nextUa ? 1 : 0][STAND]
                 );
             }
             
@@ -295,7 +267,7 @@ public class Blackjack {
         BJQlearning agent = game.new BJQlearning(alpha, gamma, epsilon);
         
         // Train the agent with a certain number of episodes
-        int episodes = 1_000_000;  // Number of training episodes
+        int episodes = 100_000;  // Number of training episodes
         agent.train(episodes);
         
         // After training, print the optimal policy for a range of player scores and dealer's shown card
